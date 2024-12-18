@@ -1,0 +1,64 @@
+# Eclipse/IntelliJ IDEA specific files
+.idea/
+*.iml
+*.iws
+*.ipr
+.classpath
+.project
+.settings/
+
+# Maven specific files
+target/
+!target/*.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# Gradle specific files
+.gradle/
+build/
+
+# Logs
+logs/
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Java specific
+*.class
+
+# Spring Boot specific
+*.jar
+*.war
+*.ear
+
+# Node specific (if you have a frontend in the same repo)
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Generated files
+out/
+bin/
+gen/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*.swo
+*.old
+*.orig
+
+# IntelliJ run configurations
+run/
