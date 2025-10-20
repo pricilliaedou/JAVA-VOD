@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import fr.vod.dto.AuthenticationForm;
 import fr.vod.dto.AuthenticationResponse;
+import fr.vod.dto.UserDTO;  //Rajout
 import fr.vod.dto.RestAPIResponse;
 import fr.vod.dto.SubscribeForm;
 import fr.vod.exception.UtilisateurExisteDejaException;
@@ -41,10 +42,14 @@ public class AuthController {
 			Cookie cookie = new Cookie("auth-token-vod", token);
 			cookie.setHttpOnly(true);
 			cookie.setSecure(true);
+			  cookie.setPath("/");  //ajout
 			response.addCookie(cookie);
+			
+			//Ajout
+			UserDTO dto = new UserDTO(user.getId(), user.getEmail(), user.getFirstName(), user.getLastName());
 
 			// retourner directemnt le token sans redirection
-			return ResponseEntity.ok(new AuthenticationResponse(token));
+			return ResponseEntity.ok(new AuthenticationResponse(token,dto));
 		} else
 			throw new UtilisateurInexistantException("pas d'utilisateur avec cette email en base");
 	}
