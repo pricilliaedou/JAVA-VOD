@@ -2,20 +2,13 @@ package fr.vod.model;
 
 import java.util.Set;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
+import java.util.HashSet;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -25,32 +18,43 @@ public class User {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	int id;
+	@Column(name="Id") 
+	private int id; 
 	
 	@Column(name="email")
 	@NotNull(message = "L'email est obligatoire")
-	String email;
+	private String email; 
 	
 	@Column(name="password")
 	@Size(min = 8, max = 20)
-	String password;
+	private String password;
 	
-	@Column(name="firstname")
+	@Column(name="Firstname")
 	@NotNull(message = "Le nom est obligatoire")
-	String firstName;
+	private String firstName;
 	
-	@Column(name="lastname")
-	String lastName;
+	@Column(name="Lastname")
+	private String lastName;
 	
-	@Column(name="phone")
-	String phone;
+	@Column (name="Gender")
+	private String gender;
+	
+	@Column(name="Phone")
+	private String phone;
+	
+//    @Column(name = "profileCode")
+//    private String profileCode;
+//    
 	
 	@ManyToMany(fetch = FetchType.LAZY)
 	@JoinTable(
-		name = "USER_VIDEO_LIKE", 
+		name = "user_video_like", 
 		joinColumns = {
-			@JoinColumn(name = "UserFK_USER", nullable = false, updatable = false, insertable = false) }, 
+			@JoinColumn(name = "UserFK_USER") }, 
 			inverseJoinColumns = {
-				@JoinColumn(name = "VideoFK_VIDEO", nullable = false, updatable = false, insertable = false) })
-	Set<Video> videoLikes;
+				@JoinColumn(name = "VideoFK_VIDEO") })
+	private Set<Video> videoLikes = new HashSet<>();
+	
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private Set<VideoComment> videoComments = new HashSet<>();
 }

@@ -3,14 +3,11 @@ package fr.vod.dto;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-@Getter
+@Getter @Setter
 @AllArgsConstructor @NoArgsConstructor
-public class AuthenticationResponse{
-	private String token;
-	private UserDTO user;
+public class SimpleUserDTO {
+    private String firstName;
+    private String lastName;
 }
-
-
-
-

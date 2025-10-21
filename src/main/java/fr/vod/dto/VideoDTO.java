@@ -1,12 +1,13 @@
 package fr.vod.dto;
+import lombok.*;
 
-import lombok.Getter;
-import lombok.Setter;
-
-@Getter
-@Setter
-public class VideoDTO {
-
-	String name;
-	
+@Getter @Setter
+@AllArgsConstructor @NoArgsConstructor
+public class VideoDTO{
+	private Integer id; 
+	private String title;
+	private String description;
+	private String url;
+	private String ageRange;
 }
+
