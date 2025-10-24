@@ -34,6 +34,11 @@ public class VideoService {
     return videoRepository.findAll(pageable);
   }
   
+  public List<Video> top3Featured() {
+	    return videoRepository.findTop3ByIsHomeFeaturedTrueOrderByHomeOrderAscIdAsc();
+	  }
+	
+  
   public Video addIfAbsent(String title, String description, String url, String categoryName, String ageRange) {
       Optional<Video> existing = videoRepository.findByFileName(url);
       if (existing.isPresent()) {

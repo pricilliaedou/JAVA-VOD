@@ -27,16 +27,17 @@ public class HomeRestController {
     homeDTO.setCategoryListDTO(listCategoryDTO);
 
 
-    List<VideoDTO> vids = new ArrayList<>();
-    for (Video v : videoService.top3()) {
-      vids.add(new VideoDTO(
-        v.getId(),
-        v.getTitle(),
-        v.getDescription(),
-        v.getFileName(), 
-        v.getAgeRange()            
-      ));
-    }
+    var featured = videoService.top3Featured();
+    List<VideoDTO> vids = featured.stream()
+        .map(v -> new VideoDTO(
+            v.getId(),
+            v.getTitle(),
+            v.getDescription(),
+            v.getFileName(),   // <- url
+            v.getAgeRange()
+        ))
+        .toList();
+
     homeDTO.setVideoListDTO(vids);
     return homeDTO;
   }

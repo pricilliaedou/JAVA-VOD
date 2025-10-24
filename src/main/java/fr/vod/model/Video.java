@@ -22,11 +22,20 @@ public class Video{
 	@Column(name = "Description", columnDefinition="TEXT")
 	private String description;
 	
-	@Column(name="Filename", length = 512, unique = true)
+	@Column(name = "Filename", length = 512, unique = true)
 	private String fileName;
 	
-	@Column(name="age_range")
+	@Column(name = "age_range")
 	private String ageRange;
+	
+	@Column(name = "is_testimony")
+	private boolean isTestimony;
+	
+	@Column(name = "is_home_featured")
+	private boolean isHomeFeatured;
+	
+	@Column(name = "home_order")
+    private Integer homeOrder;
 	
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "CategoryFK_CATEGORY")

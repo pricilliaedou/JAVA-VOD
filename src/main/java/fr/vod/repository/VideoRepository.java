@@ -16,8 +16,15 @@ public interface VideoRepository extends JpaRepository<Video, Integer> {
   List<Video> findTop3();
 
   Page<Video> findByTitleContainingIgnoreCase(String title, Pageable pageable);
+  List<Video> findByIsTestimony(boolean isTestimony);
+  List<Video> findByIsTestimonyAndAgeRangeIn(boolean isTestimony, List<String> ages);
+  List<Video> findByIsTestimonyAndCategory_Name(boolean isTestimony, String categoryName);
+  
+  List<Video> findByIsTestimonyAndCategory_NameAndAgeRangeIn(
+	      boolean isTestimony, String categoryName, List<String> ages);
+  
+  List<Video> findTop3ByIsHomeFeaturedTrueOrderByHomeOrderAscIdAsc();
+  
   boolean existsByFileName(String fileName);
   Optional<Video> findByFileName(String fileName);
-  
-  
 }
