@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface VideoRepository extends JpaRepository<Video, Integer> {
@@ -15,4 +16,8 @@ public interface VideoRepository extends JpaRepository<Video, Integer> {
   List<Video> findTop3();
 
   Page<Video> findByTitleContainingIgnoreCase(String title, Pageable pageable);
+  boolean existsByFileName(String fileName);
+  Optional<Video> findByFileName(String fileName);
+  
+  
 }

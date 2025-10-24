@@ -34,7 +34,7 @@ public class HomeRestController {
         v.getTitle(),
         v.getDescription(),
         v.getFileName(), 
-        null             
+        v.getAgeRange()            
       ));
     }
     homeDTO.setVideoListDTO(vids);

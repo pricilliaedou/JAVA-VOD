@@ -1,17 +1,27 @@
 package fr.vod.controller;
 
-import fr.vod.dto.*;
-import fr.vod.model.*;
-import fr.vod.repository.*;
+import fr.vod.dto.CommentDTO;
+import fr.vod.dto.VideoDTO;
+import fr.vod.model.Category;
+import fr.vod.model.User;
+import fr.vod.model.Video;
+import fr.vod.model.VideoComment;
+import fr.vod.repository.CategoryRepository;
+import fr.vod.repository.UserRepository;
+import fr.vod.repository.VideoCommentRepository;
+import fr.vod.repository.VideoRepository;
 import fr.vod.service.VideoService;
+
+import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @RestController
 public class VideoController {
@@ -20,8 +30,24 @@ public class VideoController {
   @Autowired private VideoRepository videoRepository;
   @Autowired private VideoCommentRepository commentRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private CategoryRepository categoryRepository; // ✅ nécessaire
 
+  // ---------- Helpers ----------
+  /** Classement des tranches pour autoriser "≤" (une tranche supérieure voit aussi les inférieures). */
+  private int ageRank(String range) {
+    if (range == null) return 0;
+    return switch (range) {
+      case "2-6"   -> 1;
+      case "7-10"  -> 2;
+      case "11-13" -> 3;
+      case "14-17" -> 4;
+      case "18+"   -> 5;
+      default      -> 0;
+    };
+  }
 
+  // ---------- PUBLIC LIST (paginated) ----------
+  // + filtre ageRange optionnel en "≤"
   @GetMapping("/public/videos")
   public ResponseEntity<?> list(
       @RequestParam(defaultValue = "0") int page,
@@ -32,46 +58,136 @@ public class VideoController {
     Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
     Page<Video> p = videoService.list(query, pageable);
 
-
-    Page<VideoDTO> out = p.map(v -> new VideoDTO(
-      v.getId(),
-      v.getTitle(),
-      v.getDescription(),
-      v.getFileName(),
-      null
+    Page<VideoDTO> mapped = p.map(v -> new VideoDTO(
+        v.getId(),
+        v.getTitle(),
+        v.getDescription(),
+        v.getFileName(), // url
+        v.getAgeRange()
     ));
+
+    if (ageRange == null || ageRange.isBlank()) {
+      return ResponseEntity.ok(mapped);
+    }
+
+    final int selectedRank = ageRank(ageRange);
+    List<VideoDTO> filtered = mapped.getContent().stream()
+        .filter(v -> ageRank(v.getAgeRange()) <= selectedRank)
+        .toList();
+
+    Page<VideoDTO> filteredPage = new PageImpl<>(filtered, pageable, filtered.size());
+    return ResponseEntity.ok(filteredPage);
+  }
+
+  // ---------- PUBLIC GROUPED BY CATEGORY ----------
+  // Retour: [ { category: "Nom", videos: [VideoDTO...] }, ... ]
+  @GetMapping("/public/videos/by-category")
+  public ResponseEntity<List<Map<String, Object>>> byCategory(
+      @RequestParam(required = false) String ageRange
+  ) {
+    final int selectedRank = ageRank(ageRange);
+
+    List<Category> cats = StreamSupport
+        .stream(categoryRepository.findAll().spliterator(), false)
+        .toList();
+
+    List<Map<String, Object>> out = new ArrayList<>();
+
+    for (Category c : cats) {
+      List<VideoDTO> items = c.getVideos().stream()
+          .filter(v -> ageRange == null || ageRange.isBlank() || ageRank(v.getAgeRange()) <= selectedRank)
+          .map(v -> new VideoDTO(
+              v.getId(),
+              v.getTitle(),
+              v.getDescription(),
+              v.getFileName(),
+              v.getAgeRange()
+          ))
+          .toList();
+
+      Map<String, Object> block = new LinkedHashMap<>();
+      block.put("category", c.getName());
+      block.put("videos", items);
+      out.add(block);
+    }
 
     return ResponseEntity.ok(out);
   }
 
+  // ---------- PUBLIC "ALL" GROUPED: category -> byAge ----------
+  @GetMapping("/public/videos/all")
+  public ResponseEntity<List<Map<String, Object>>> allVideosGrouped() {
 
+    List<String> ageOrder = List.of("2-6", "7-10", "11-13", "14-17", "18+");
+
+    List<Category> cats = StreamSupport
+        .stream(categoryRepository.findAll().spliterator(), false)
+        .toList();
+
+    List<Map<String, Object>> out = new ArrayList<>();
+
+    for (Category c : cats) {
+      Map<String, List<VideoDTO>> byAge = new LinkedHashMap<>();
+      ageOrder.forEach(a -> byAge.put(a, new ArrayList<>()));
+
+      c.getVideos().forEach(v -> {
+        String a = v.getAgeRange();
+        if (a == null || a.isBlank() || !byAge.containsKey(a)) {
+          a = "18+";
+        }
+        byAge.get(a).add(new VideoDTO(
+            v.getId(),
+            v.getTitle(),
+            v.getDescription(),
+            v.getFileName(),
+            v.getAgeRange()
+        ));
+      });
+
+      byAge.entrySet().removeIf(e -> e.getValue().isEmpty());
+
+      Map<String, Object> block = new LinkedHashMap<>();
+      block.put("category", c.getName());
+      block.put("byAge", byAge);
+      block.put("total", byAge.values().stream().mapToInt(List::size).sum());
+      out.add(block);
+    }
+
+    return ResponseEntity.ok(out);
+  }
+
+  // ---------- PUBLIC DETAIL ----------
   @GetMapping("/public/videos/{id}")
   public ResponseEntity<VideoDTO> detail(@PathVariable Integer id) {
     Video v = videoRepository.findById(id).orElseThrow();
     return ResponseEntity.ok(new VideoDTO(
-      v.getId(), v.getTitle(), v.getDescription(), v.getFileName(), null
+        v.getId(),
+        v.getTitle(),
+        v.getDescription(),
+        v.getFileName(),
+        v.getAgeRange()
     ));
-    }
+  }
 
-
+  // ---------- PUBLIC COMMENTS (read) ----------
   @GetMapping("/public/videos/{id}/comments")
   public ResponseEntity<List<CommentDTO>> comments(@PathVariable Integer id) {
     Video v = videoRepository.findById(id).orElseThrow();
     List<CommentDTO> out = commentRepository.findByVideoOrderByIdDesc(v).stream().map(c ->
-      new CommentDTO(
-        c.getComment(),
-        new SimpleUserDTO(
-          c.getUser() != null ? c.getUser().getFirstName() : null,
-          c.getUser() != null ? c.getUser().getLastName()  : null
+        new CommentDTO(
+            c.getComment(),
+            new fr.vod.dto.SimpleUserDTO(
+                c.getUser() != null ? c.getUser().getFirstName() : null,
+                c.getUser() != null ? c.getUser().getLastName()  : null
+            )
         )
-      )
     ).collect(Collectors.toList());
     return ResponseEntity.ok(out);
   }
 
-
+  // ---------- AUTH REQUIRED (like/comment) ----------
   private User currentUser(HttpServletRequest req) {
-    // TODO: brancher avec ton mécanisme (cookie -> user)
+    // TODO: retrouver l'utilisateur depuis le cookie/token "auth-token-vod"
     return null;
   }
 
@@ -111,3 +227,8 @@ public class VideoController {
     return ResponseEntity.ok().build();
   }
 }
+
+
+
+
+
