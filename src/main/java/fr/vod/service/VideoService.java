@@ -21,6 +21,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -81,6 +82,7 @@ public class VideoService {
   /* =========================================================
      LIKE / UNLIKE
      ========================================================= */
+  @Transactional
   public Map<String, Object> like(Integer videoId) {
       User me = getCurrentUserOrThrow();
       Video v = videoRepository.findById(videoId).orElseThrow(() ->
@@ -92,6 +94,7 @@ public class VideoService {
       return meta(videoId);
   }
 
+  @Transactional
   public Map<String, Object> unlike(Integer videoId) {
       User me = getCurrentUserOrThrow();
       Video v = videoRepository.findById(videoId).orElseThrow(() ->
@@ -104,6 +107,7 @@ public class VideoService {
   /* =========================================================
      FAVORI / UNFAVORI
      ========================================================= */
+  @Transactional
   public Map<String, Object> favorite(Integer videoId) {
       User me = getCurrentUserOrThrow();
       Video v = videoRepository.findById(videoId).orElseThrow(() ->
@@ -115,6 +119,7 @@ public class VideoService {
       return meta(videoId);
   }
 
+  @Transactional
   public Map<String, Object> unfavorite(Integer videoId) {
       User me = getCurrentUserOrThrow();
       Video v = videoRepository.findById(videoId).orElseThrow(() ->

@@ -1,14 +1,14 @@
 package fr.vod.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
 
 import fr.vod.dto.AuthenticationForm;
 import fr.vod.dto.AuthenticationResponse;
@@ -19,44 +19,66 @@ import fr.vod.exception.UtilisateurExisteDejaException;
 import fr.vod.exception.UtilisateurInexistantException;
 import fr.vod.model.User;
 import fr.vod.service.UserService;
+import fr.vod.security.TokenStore;     // ✅ ajoute ce petit store (cf. fichier TokenStore.java)
 import jakarta.servlet.http.HttpServletResponse;
 
+
 @RestController
+@CrossOrigin(origins = "${app.url}", allowCredentials = "true") // autorise ton front (http://localhost:5173)
 public class AuthController {
 
     @Autowired
     UserService userService;
 
+    @Autowired
+    TokenStore tokenStore; // ✅ on enregistre le token pour que le filtre puisse authentifier
+
     @PostMapping("/public/login")
     public Object login(@RequestBody AuthenticationForm loginRequest, HttpServletResponse response) {
-        Authentication authenticationRequest =
-                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword());
 
-        System.out.println(loginRequest.getUsername() + " / " + loginRequest.getPassword());
-
+        // Auth "maison" : on vérifie l'utilisateur via le service
         User user = userService.get(loginRequest.getUsername(), loginRequest.getPassword());
 
         if (user != null) {
+            // ✅ génère un token et ENREGISTRE-LE dans le TokenStore
             String token = user.hashCode() + "" + System.currentTimeMillis();
+            tokenStore.put(token, user.getEmail());
 
             boolean isProd = false;
             ResponseCookie authCookie = ResponseCookie.from("auth-token-vod", token)
                     .httpOnly(true)
-                    .secure(isProd)         
+                    .secure(isProd)                 // true en HTTPS
                     .path("/")
-                    .sameSite(isProd ? "None" : "Lax") 
-                    .maxAge(60L * 60 * 24 * 7)         
+                    .sameSite(isProd ? "None" : "Lax")
+                    .maxAge(60L * 60 * 24 * 7)      // 7 jours
                     .build();
             response.addHeader(HttpHeaders.SET_COOKIE, authCookie.toString());
 
-          
             UserDTO dto = new UserDTO(user.getId(), user.getEmail(), user.getFirstName(), user.getLastName());
 
-       
             return ResponseEntity.ok(new AuthenticationResponse(token, dto));
         } else {
             throw new UtilisateurInexistantException("pas d'utilisateur avec cette email en base");
         }
+    }
+    
+    @GetMapping("/api/me")
+    public ResponseEntity<UserDTO> me() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null || !auth.isAuthenticated() || auth.getName() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String email = auth.getName();
+        User user = userService.findByEmail(email);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        UserDTO dto = new UserDTO(user.getId(), user.getEmail(), user.getFirstName(), user.getLastName());
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/public/subscribe")
@@ -76,5 +98,3 @@ public class AuthController {
         }
     }
 }
-
-
