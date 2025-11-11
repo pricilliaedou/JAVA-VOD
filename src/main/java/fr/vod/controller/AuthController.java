@@ -19,8 +19,9 @@ import fr.vod.exception.UtilisateurExisteDejaException;
 import fr.vod.exception.UtilisateurInexistantException;
 import fr.vod.model.User;
 import fr.vod.service.UserService;
-import fr.vod.security.TokenStore;     // ✅ ajoute ce petit store (cf. fichier TokenStore.java)
+import fr.vod.security.JwtUtil;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 
 
 @RestController
@@ -31,18 +32,17 @@ public class AuthController {
     UserService userService;
 
     @Autowired
-    TokenStore tokenStore; // ✅ on enregistre le token pour que le filtre puisse authentifier
+    JwtUtil jwtUtil;
 
     @PostMapping("/public/login")
     public Object login(@RequestBody AuthenticationForm loginRequest, HttpServletResponse response) {
 
-        // Auth "maison" : on vérifie l'utilisateur via le service
+        // Auth via UserService (password checked inside)
         User user = userService.get(loginRequest.getUsername(), loginRequest.getPassword());
 
         if (user != null) {
-            // ✅ génère un token et ENREGISTRE-LE dans le TokenStore
-            String token = user.hashCode() + "" + System.currentTimeMillis();
-            tokenStore.put(token, user.getEmail());
+            // génère un JWT
+            String token = jwtUtil.generateToken(user.getEmail());
 
             boolean isProd = false;
             ResponseCookie authCookie = ResponseCookie.from("auth-token-vod", token)
@@ -61,7 +61,7 @@ public class AuthController {
             throw new UtilisateurInexistantException("pas d'utilisateur avec cette email en base");
         }
     }
-    
+
     @GetMapping("/api/me")
     public ResponseEntity<UserDTO> me() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -82,7 +82,7 @@ public class AuthController {
     }
 
     @PostMapping("/public/subscribe")
-    public Object subscribe(@RequestBody SubscribeForm subscribeForm, HttpServletResponse response) {
+    public Object subscribe(@RequestBody @Valid SubscribeForm subscribeForm, HttpServletResponse response) {
         if (!userService.exists(subscribeForm.getEmail())) {
             userService.createUser(
                     subscribeForm.getEmail(),

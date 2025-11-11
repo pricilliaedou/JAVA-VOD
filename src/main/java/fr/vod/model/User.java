@@ -4,7 +4,6 @@ import java.util.Set;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import java.util.HashSet;
@@ -25,8 +24,7 @@ public class User {
 	@NotNull(message = "L'email est obligatoire")
 	private String email; 
 	
-	@Column(name="password")
-	@Size(min = 8, max = 20)
+	@Column(name="password", length = 255)
 	private String password;
 	
 	@Column(name="Firstname")

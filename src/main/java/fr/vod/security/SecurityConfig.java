@@ -38,6 +38,8 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
     }
+
+    // PasswordEncoder bean moved to SecurityBeansConfig to avoid circular dependency
 }
 
 

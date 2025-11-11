@@ -17,13 +17,30 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
+import fr.vod.service.UserService;
+import fr.vod.model.User;
+
 @Component
 public class TokenAuthentificationFilter extends OncePerRequestFilter {
 
-    private final TokenStore tokenStore;
+    private final JwtUtil jwtUtil;
+    private final UserService userService;
 
-    public TokenAuthentificationFilter(TokenStore tokenStore) {
-        this.tokenStore = tokenStore;
+    public TokenAuthentificationFilter(JwtUtil jwtUtil, UserService userService) {
+        this.jwtUtil = jwtUtil;
+        this.userService = userService;
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        // Avoid validating JWT on public endpoints (ex: login, subscribe) and on preflight
+        String path = request.getServletPath();
+        if (path == null) return false;
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
+        if (path.startsWith("/public/")) return true;
+        // also allow exact /public
+        if (path.equals("/public")) return true;
+        return false;
     }
 
     @Override
@@ -32,11 +49,7 @@ public class TokenAuthentificationFilter extends OncePerRequestFilter {
                                     FilterChain chain)
             throws ServletException, IOException {
 
-        // 1) Laisse passer les préflights CORS
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            chain.doFilter(request, response);
-            return;
-        }
+        // If request is skipped by shouldNotFilter, this method won't be called.
 
         // 2) Si déjà authentifié, on continue
         if (SecurityContextHolder.getContext().getAuthentication() != null) {
@@ -48,21 +61,34 @@ public class TokenAuthentificationFilter extends OncePerRequestFilter {
         String token = readTokenFromCookie(request, "auth-token-vod");
         if (token == null) token = readTokenFromAuthorizationHeader(request);
 
-        // 4) Si on a un token, on vérifie dans le store et on authentifie
-        if (token != null) {
-            String email = tokenStore.get(token);
-            if (email != null && !email.isBlank()) {
-                var authorities = List.of(new SimpleGrantedAuthority("USER"));
-                var principal = org.springframework.security.core.userdetails.User
-                        .withUsername(email)
-                        .password("") // inutile ici
-                        .authorities(authorities)
-                        .build();
+        boolean tokenValidated = false;
+        try {
+            // 4) Si on a un token, on vérifie le JWT et on authentifie
+            if (token != null && jwtUtil.validateToken(token)) {
+                tokenValidated = true;
+                String email = jwtUtil.extractUsername(token);
+                if (email != null && !email.isBlank()) {
+                    User user = userService.findByEmail(email);
+                    if (user != null) {
+                        var authorities = List.of(new SimpleGrantedAuthority("USER"));
+                        var principal = org.springframework.security.core.userdetails.User
+                                .withUsername(email)
+                                .password("") // pas besoin du password ici
+                                .authorities(authorities)
+                                .build();
 
-                var auth = new UsernamePasswordAuthenticationToken(principal, null, authorities);
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                        var auth = new UsernamePasswordAuthenticationToken(principal, null, authorities);
+                        auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(auth);
+                    }
+                }
             }
+        } catch (IllegalStateException ex) {
+            // This happens when JJWT classes are missing at runtime (JwtUtil throws informative IllegalStateException)
+            // We must NOT let this break the authentication chain for public endpoints or during login flow.
+            // Log the problem (System.err.println used to avoid new logging dependency here) and continue without auth.
+            System.err.println("JWT validation failed due to missing JJWT runtime classes: " + ex.getMessage());
+            // do not rethrow — continue without authenticating the request
         }
 
         chain.doFilter(request, response);
@@ -86,7 +112,7 @@ public class TokenAuthentificationFilter extends OncePerRequestFilter {
             return header.substring(7);
         }
         return null;
-        }
+    }
 }
 
 
