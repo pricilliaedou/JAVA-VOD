@@ -33,12 +33,11 @@ public class TokenAuthentificationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        // Avoid validating JWT on public endpoints (ex: login, subscribe) and on preflight
+   
         String path = request.getServletPath();
         if (path == null) return false;
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
         if (path.startsWith("/public/")) return true;
-        // also allow exact /public
         if (path.equals("/public")) return true;
         return false;
     }
@@ -49,21 +48,17 @@ public class TokenAuthentificationFilter extends OncePerRequestFilter {
                                     FilterChain chain)
             throws ServletException, IOException {
 
-        // If request is skipped by shouldNotFilter, this method won't be called.
-
-        // 2) Si déjà authentifié, on continue
         if (SecurityContextHolder.getContext().getAuthentication() != null) {
             chain.doFilter(request, response);
             return;
         }
 
-        // 3) Récupère un token depuis cookie OU header Authorization
+     
         String token = readTokenFromCookie(request, "auth-token-vod");
         if (token == null) token = readTokenFromAuthorizationHeader(request);
 
         boolean tokenValidated = false;
         try {
-            // 4) Si on a un token, on vérifie le JWT et on authentifie
             if (token != null && jwtUtil.validateToken(token)) {
                 tokenValidated = true;
                 String email = jwtUtil.extractUsername(token);
@@ -83,12 +78,8 @@ public class TokenAuthentificationFilter extends OncePerRequestFilter {
                     }
                 }
             }
-        } catch (IllegalStateException ex) {
-            // This happens when JJWT classes are missing at runtime (JwtUtil throws informative IllegalStateException)
-            // We must NOT let this break the authentication chain for public endpoints or during login flow.
-            // Log the problem (System.err.println used to avoid new logging dependency here) and continue without auth.
+        } catch (IllegalStateException ex) {      
             System.err.println("JWT validation failed due to missing JJWT runtime classes: " + ex.getMessage());
-            // do not rethrow — continue without authenticating the request
         }
 
         chain.doFilter(request, response);
@@ -117,59 +108,3 @@ public class TokenAuthentificationFilter extends OncePerRequestFilter {
 
 
 
-//package fr.vod.security;
-//
-//import java.io.IOException;
-//import java.util.ArrayList;
-//import java.util.Collection;
-//
-//import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-//import org.springframework.security.core.GrantedAuthority;
-//import org.springframework.security.core.authority.SimpleGrantedAuthority;
-//import org.springframework.security.core.context.SecurityContextHolder;
-//import org.springframework.security.core.userdetails.UserDetails;
-//import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-//import org.springframework.stereotype.Component;
-//import org.springframework.web.filter.OncePerRequestFilter;
-//
-//import jakarta.servlet.FilterChain;
-//import jakarta.servlet.ServletException;
-//import jakarta.servlet.http.HttpServletRequest;
-//import jakarta.servlet.http.HttpServletResponse;
-//
-//@Component
-//public class TokenAuthentificationFilter extends OncePerRequestFilter {
-//
-//    @Override
-//    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-//            throws ServletException, IOException {
-//        /*final String authHeader = request.getHeader("Authorization");
-//        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-//        	System.out.println("Pas de bearer");
-//            filterChain.doFilter(request, response);
-//            return;
-//        }
-//        String token = authHeader.substring(7);*/
-//    	String token = request.getParameter("token");
-//        if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-//            if (token.equals("azertyuiop")) {
-//            	UserDetails userDetails = new org.springframework.security.core.userdetails.User(
-//            	        "username_a_definir",
-//            	        "password_encode_de_pref",
-//            	        getAuthorities());
-//            	
-//                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-//                        userDetails, null, userDetails.getAuthorities());
-//                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-//                SecurityContextHolder.getContext().setAuthentication(authToken);
-//            }
-//        }
-//        filterChain.doFilter(request, response);
-//    }
-//    
-//    private Collection<? extends GrantedAuthority> getAuthorities() {
-//    	ArrayList<GrantedAuthority> liste = new ArrayList<GrantedAuthority>();
-//    	liste.add(new SimpleGrantedAuthority("ADMIN"));
-//        return liste;
-//    }
-//}

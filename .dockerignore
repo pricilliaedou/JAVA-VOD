@@ -1,0 +1,23 @@
+# Maven target
+target/
+
+# Local Maven repository cache
+.m2/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# Logs and temporary files
+*.log
+log/
+
+# Java build artifacts
+*.class
+*.jar
+*.war
+
+# OS files
+.DS_Store
+Thumbs.db

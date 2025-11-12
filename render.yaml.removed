@@ -1,0 +1,11 @@
+# Original render.yaml sauvegardé - removed on user request
+services:
+  - type: web
+    name: vod
+    env: docker
+    plan: free
+    dockerfilePath: Dockerfile
+    # Optional: you can set env vars here or in the Render dashboard
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: "prod"
